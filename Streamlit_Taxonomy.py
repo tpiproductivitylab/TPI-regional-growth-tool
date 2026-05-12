@@ -9,7 +9,9 @@ import textwrap
 import io
 import time
 # Streamlit-app
-
+from groq import Groq
+client = Groq(api_key = st.secrets["groq_key"])
+ 
 @st.cache_data
 def load_data():
     t0 = time.time()
@@ -123,6 +125,11 @@ def process_data(data, itlmapping, start, year, levels, region, customregion):
 
     print("Runtime data processing: " + str(int((time.time() - t0)*1000)) + " miliseconds")
     return dtaAgg, dtaselected
+
+def generate_insight():
+    insight_text = """Data overview:
+    London and the South East >"""
+    return insight_text
 
 def main():
     st.set_page_config(layout="wide", page_icon="favicon.ico", page_title="UK Regional Productivity Growth")
@@ -326,7 +333,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    custom_regions = st.sidebar.multiselect('Customize selection of regions (optional):', options = regs, default = None)
+    custom_regions = st.sidebar.multiselect('Customise selection of regions (optional):', options = regs, default = None)
 
 
     #Figure formatting tools
@@ -651,6 +658,8 @@ def main():
                     region = selected_regions,
                     customregion = custom_regions,
                     )
+            print(dtaAgg, dtaselected)  # Remove
+            dtaselected.to_csv('testing.csv')
 
             t0 = time.time()
             if threeD:
@@ -722,10 +731,51 @@ def main():
     #         buffer.close()  # Ensure the buffer is properly closed
     #     print("Runtime pdf buffering: " + str(int((time.time() - t0)*1000)) + " miliseconds")
 
+    # AI overview box
+    if st.button("Generate A.I. insights of selected data"):
+        # insight_text = generate_insight()
+        # st.write(insight_text)
+        # Use functions to generate prompt, then call
+        # print(year[0])
+        # print(year[1])
+        # print(levels)  # 
+        # print(selected_regions)
+        # print(color_level)
+        # print(custom_regions)
+        high_growth = "South East"
+        low_growth = "Wales"
+        prompt = f"""Analyze this economic data using professional, analytical language. 
+            You may ONLY use the numbers and entities provided below.
 
+            ALLOWED to add: 
+            - Economic terminology (outpaced, lagged, diverged, contracted, etc.)
+            - Comparative language (significantly, slightly, nearly double)
+            - Structural observations (gap between, performance spread)
 
+            FORBIDDEN to add:
+            - Any specific numbers not listed
+            - Time periods (quarterly, annually, last year)
+            - External causes (due to, because of, driven by)
+            - Names of policies, events, or leaders
 
-    print(" ")
+            Data:
+            - Across time-period: {year[0]} - {year[1]}
+            - Highest growth region: {high_growth}
+            - Lowest growth region: {low_growth}
+
+            Write one analytical sentence:"""
+        completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            model="llama-3.1-8b-instant",  # Free model, fast and capable
+            temperature=0.3,  # Lower = more consistent outputs
+        )
+        result = completion.choices[0].message.content
+        st.write(result)
 
 if __name__ == '__main__':
     main()

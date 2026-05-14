@@ -27,8 +27,7 @@ def load_indicators():
     return indicators
 
 @st.cache_data
-def process_data(data, itlmapping, start, year, levels, region, customregion):
-
+def process_data(data, itlmapping, start, year, levels, region, customregion, include_itl1):
     t0 = time.time()
 
     period =  list(range(start,year+1))
@@ -122,9 +121,19 @@ def process_data(data, itlmapping, start, year, levels, region, customregion):
 
     dtaselected = dtaselected.droplevel('year')
     dtaAgg = dtaAgg.droplevel('year')
+    
+    dtaITL1 = None
+    if include_itl1:
+        selected_itl1_names = itlmapping.loc[itlmapping['itl1name'].isin(region), 'itl1name'].unique()
+        itl1_temp = dtaAgg.loc[('ITL1', slice(None), list(selected_itl1_names)), :]
+        itl1_temp = itl1_temp.reset_index()
+        itlmapping_itl1 = itlmapping[['itl1', 'itl1name']].drop_duplicates()
+        itl1_temp = itl1_temp.join(itlmapping_itl1.set_index('itl1'), on='code')
+        itl1_temp = itl1_temp.drop(columns='Population').drop_duplicates()
+        dtaITL1 = itl1_temp.set_index(['level', 'code', 'name']).drop_duplicates()
 
     print("Runtime data processing: " + str(int((time.time() - t0)*1000)) + " miliseconds")
-    return dtaAgg, dtaselected
+    return dtaAgg, dtaselected, dtaITL1
 
 def generate_insight():
     insight_text = """Data overview:
@@ -514,7 +523,7 @@ def main():
         for i in range(year[0], year[1] + 1):
             if i == year[1]:
                 break
-            dtaAgg, dtaselected = process_data(
+            dtaAgg, dtaselected, dtaITL1 = process_data(
                 data=data,
                 itlmapping=itlmapping,
                 start=i,
@@ -522,6 +531,7 @@ def main():
                 levels=levels,
                 region=selected_regions,
                 customregion = custom_regions,
+                include_itl1 = False
             )
             dtaselected['year'] = i
             dtaAgg['year'] = i
@@ -559,7 +569,7 @@ def main():
         yearly_dataselected = []
         yearly_dtaAgg = []
         for i in range(year[1], int(max(data.index.unique(level='year'))) + 1):
-            dtaAgg, dtaselected = process_data(
+            dtaAgg, dtaselected, dtaITL1 = process_data(
                 data=data,
                 itlmapping=itlmapping,
                 start=year[0],
@@ -567,6 +577,7 @@ def main():
                 levels=levels,
                 region=selected_regions,
                 customregion = custom_regions,
+                include_itl1 = False
             )
             dtaselected['year'] = i
             dtaAgg['year'] = i
@@ -605,7 +616,7 @@ def main():
         yearly_dataselected = []
         yearly_dtaAgg = []
         for i in range(year[1], int(max(data.index.unique(level='year'))) + 1):
-            dtaAgg, dtaselected = process_data(
+            dtaAgg, dtaselected, dtaITL1 = process_data(
                 data=data,
                 itlmapping=itlmapping,
                 start=year[0] - year[1] + i,
@@ -613,6 +624,7 @@ def main():
                 levels=levels,
                 region=selected_regions,
                 customregion = custom_regions,
+                include_itl1 = False
             )
             dtaselected['year'] = i
             dtaAgg['year'] = i
@@ -649,7 +661,7 @@ def main():
             st.error('Adjust the time period, no frames animated')
     if not animate:
         with figure.container():
-            dtaAgg, dtaselected = process_data(
+            dtaAgg, dtaselected, dtaITL1 = process_data(
                     data = data,
                     itlmapping = itlmapping,
                     start = year[0],
@@ -657,13 +669,18 @@ def main():
                     levels = levels,
                     region = selected_regions,
                     customregion = custom_regions,
+                    include_itl1 = True
                     )
-            print(dtaAgg, dtaselected)  # Remove
+            # print(dtaAgg, dtaselected)  # Remove
+            print(dtaITL1)
+            dtaITL1.to_csv('ITL1.csv')
+            dtaAgg.to_csv('full.csv')
             dtaselected.to_csv('testing.csv')
 
             t0 = time.time()
             if threeD:
-                fig = graphs.scatter_3D(dtaselected = dtaselected,
+                fig = graphs.scatter_3D(
+                                dtaselected = dtaselected,
                                 size = size,
                                 start = year[0],
                                 year = year[1],
@@ -675,7 +692,8 @@ def main():
                                 z=indicators[z]
                                 )
             else:
-                fig = graphs.scatter(dtaAgg = dtaAgg,
+                fig = graphs.scatter(
+                            dtaAgg = dtaAgg,
                             dtaselected = dtaselected,
                             size = size,
                             start = year[0],

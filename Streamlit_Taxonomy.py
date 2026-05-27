@@ -9,8 +9,11 @@ import textwrap
 import io
 import time
 # Streamlit-app
+import os
 from groq import Groq
-client = Groq(api_key = st.secrets["groq_key"])
+
+api_key = os.getenv("groq_key") or st.secrets["groq_key"]
+client = Groq(api_key = api_key)
  
 @st.cache_data
 def load_data():

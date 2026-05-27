@@ -760,10 +760,39 @@ def main():
         # print(selected_regions)
         # print(color_level)
         # print(custom_regions)
-        high_growth = "South East"
-        low_growth = "Wales"
-        prompt = f"""Analyze this economic data using professional, analytical language. 
+        avgUK = dtaAgg.loc[(slice(None), 'UKX', slice(None)),['GVA per hour', 'Average Annual log percentage change', 'Population']].reset_index().drop(columns=['Population']).drop_duplicates()
+        print("avgUK:", avgUK)
+        dtaITL1 = dtaITL1.reset_index()
+
+        growth_col = "Average Annual log percentage change"
+        productivity_col = "GVA per hour"
+
+        average_productivity = avgUK[productivity_col][0]
+        average_growth = avgUK[growth_col][0]
+
+        median_growth = dtaITL1[growth_col].median()
+        median_productivity = dtaITL1[productivity_col].median()
+
+        # print(f"Median growth:       {average_growth:.6f}")
+        # print(f"Median productivity: {average_productivity:.2f}")
+
+        # CU: high growth, low productivity (Catching Up)
+        CU = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] < average_productivity)]["name"].tolist()
+
+        # FB: low growth, low productivity (Falling Behind)
+        FB = dtaITL1[(dtaITL1[growth_col] < average_growth) & (dtaITL1[productivity_col] < average_productivity)]["name"].tolist()
+
+        # SA: high growth, high productivity (Steaming Ahead)
+        SA = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] > average_productivity)]["name"].tolist()
+
+        # LG: high productivity, low growth (Losing Ground)
+        LG = dtaITL1[(dtaITL1[growth_col] < average_growth) & (dtaITL1[productivity_col] > average_productivity)]["name"].tolist()
+
+        prompt = f"""Analyse this economic data using professional, analytical language. 
             You may ONLY use the numbers and entities provided below.
+            You MUST reference the specific regions mentioned
+            You MUST reference the years mentioned
+            Only use British English
 
             ALLOWED to add: 
             - Economic terminology (outpaced, lagged, diverged, contracted, etc.)
@@ -775,13 +804,76 @@ def main():
             - Time periods (quarterly, annually, last year)
             - External causes (due to, because of, driven by)
             - Names of policies, events, or leaders
+            """
+        
+        if levels[0] == 'ITL1' and len(levels) == 0:
+            CU_values = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] < average_productivity)][growth_col].multiply(100).tolist()
+            FB_values = dtaITL1[(dtaITL1[growth_col] < average_growth) & (dtaITL1[productivity_col] < average_productivity)][growth_col].multiply(100).tolist()
+            SA_values = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] > average_productivity)][growth_col].multiply(100).tolist()
+            LG_values = dtaITL1[(dtaITL1[growth_col] < average_growth) & (dtaITL1[productivity_col] > average_productivity)][growth_col].multiply(100).tolist()
+            prompt = prompt + f"""Data:
+                - Across time-period: {year[0]} - {year[1]}
+                - Catching Up regions and growth rates (%) (high productivity growth, low productivity):  {CU, CU_values}
+                - Falling Behind regions and growth rates (%) (low productivity growth, low productivity):  {FB, FB_values}
+                - Steaming Ahead regions and growth rates (%) (high productivity growth, high productivity): {SA, SA_values}
+                - Losing Ground regions and growth rates (%) (low productivity growth,  high productivity): {LG, LG_values}
+                Write one analytical paragraph about the data
+                """
+        else:
+            prompt = prompt + f"""Data:
+                Data for ITL1 regions:
+                - Across time-period: {year[0]} - {year[1]}
+                - Catching Up regions (high productivity growth, low productivity):  {CU}
+                - Falling Behind regions (low productivity growth, low productivity):  {FB}
+                - Steaming Ahead regions (high productivity growth, high productivity): {SA}
+                - Losing Ground regions (low productivity growth,  high productivity): {LG}
+                """
+            
+            if 'MCA' in levels:
+                dtaselected = dtaselected.reset_index()
+                MCA_data = [dtaselected['level'] == 'MCA']
+                MCA_data = (
+                    dtaselected.set_index("name")["Average Annual log percentage change"]
+                    .mul(100)
+                    .round(2)
+                    .to_dict()
+                )
 
-            Data:
-            - Across time-period: {year[0]} - {year[1]}
-            - Highest growth region: {high_growth}
-            - Lowest growth region: {low_growth}
+                prompt = prompt + f"""Data:
+                Data for Mayoral Combined Authorities:
+                - MCA Regions and their annual growth rates (%) {MCA_data}
 
-            Write one analytical sentence:"""
+                """
+            
+            if 'ITL2' in levels:
+                dtaselected = dtaselected.reset_index()
+                ITL2_data = dtaselected[dtaselected['level'] == 'ITL2']
+
+                highest = ITL2_data.loc[ITL2_data[growth_col].idxmax()]
+                lowest = ITL2_data.loc[ITL2_data[growth_col].idxmin()]
+
+                prompt += f"""
+                Data for ITL2 regions:
+                Highest growth: {highest['name']} ({highest[growth_col] * 100:.2f}%)
+                Lowest growth: {lowest['name']} ({lowest[growth_col] * 100:.2f}%)
+                """
+            
+            if 'ITL3' in levels:
+                dtaselected = dtaselected.reset_index()
+                ITL3_data = dtaselected[dtaselected['level'] == 'ITL3']
+                
+                highest = ITL3_data.loc[ITL3_data[growth_col].idxmax()]
+                lowest = ITL3_data.loc[ITL3_data[growth_col].idxmin()]
+
+                prompt += f"""
+                Data for ITL3 regions:
+                Highest growth: {highest['name']} ({highest[growth_col] * 100:.2f}%)
+                Lowest growth: {lowest['name']} ({lowest[growth_col] * 100:.2f}%)
+                """
+
+            prompt = prompt + f"""
+            Write one brief paragraph about the ITL1 regions, and then additional paragraphs for extra regions if included"""
+
         completion = client.chat.completions.create(
             messages=[
                 {
@@ -789,11 +881,11 @@ def main():
                     "content": prompt,
                 }
             ],
-            model="llama-3.1-8b-instant",  # Free model, fast and capable
+            model="llama-3.1-8b-instant",
             temperature=0.3,  # Lower = more consistent outputs
         )
         result = completion.choices[0].message.content
-        st.write(result)
+        st.info(result)
 
 if __name__ == '__main__':
     main()

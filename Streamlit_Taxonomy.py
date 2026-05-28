@@ -809,7 +809,7 @@ def main():
             - Names of policies, events, or leaders
             """
         
-        if levels[0] == 'ITL1' and len(levels) == 0:
+        if levels == ['ITL1']:
             CU_values = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] < average_productivity)][growth_col].multiply(100).tolist()
             FB_values = dtaITL1[(dtaITL1[growth_col] < average_growth) & (dtaITL1[productivity_col] < average_productivity)][growth_col].multiply(100).tolist()
             SA_values = dtaITL1[(dtaITL1[growth_col] > average_growth) & (dtaITL1[productivity_col] > average_productivity)][growth_col].multiply(100).tolist()
@@ -843,7 +843,7 @@ def main():
                 )
 
                 prompt = prompt + f"""Data:
-                Data for Mayoral Combined Authorities:
+                Data for Mayoral Combined Authorities (MCAs):
                 - MCA Regions and their annual growth rates (%) {MCA_data}
 
                 """
@@ -875,7 +875,7 @@ def main():
                 """
 
             prompt = prompt + f"""
-            Write one brief paragraph about the ITL1 regions, and then additional paragraphs for extra regions if included"""
+            Write one brief paragraph about the ITL1 regions, and then additional paragraphs for extra regions (ITL2, ITL3, MCA) if included"""
 
         completion = client.chat.completions.create(
             messages=[

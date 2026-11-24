@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import colorsys
 
-itlmap = pd.read_csv('Region_Mapping_2024.csv')
+itlmap = pd.read_csv('itlmapping.csv')
 
 itl1_to_itl2 = itlmap.groupby("itl1name")["itl2name"].apply(list).to_dict()
 

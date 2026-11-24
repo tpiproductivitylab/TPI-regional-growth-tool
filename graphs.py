@@ -19,12 +19,61 @@ from PIL import Image
 import json
 import plotly.graph_objects as go
 from copy import deepcopy
+
+UPCOMING_MSA_GROUP = 'Upcoming Mayoral Strategic Authorities'
+ESTABLISHED_MSA_GROUP = 'Established Mayoral Strategic Authorities'
+UPCOMING_MSA_NAMES = {
+    'Cumbria',
+    'Cheshire',
+    'Greater Essex',
+    'Sussex and Brighton',
+    'Hampshire and Isle of Wight',
+    'Wessex',
+    'Norfolk and Suffolk',
+    'Thames Valley',
+    'Leicester, Leicestershire and Rutland',
+    'Devon, Plymouth and Torbay',
+    'Lancashire'
+}
+ESTABLISHED_MSA_NAMES = {
+    'Cambridgeshire and Peterborough',
+    'East Midlands',
+    'Greater Lincolnshire',
+    'Greater London',
+    'Tees Valley',
+    'North East',
+    'Greater Manchester',
+    'Liverpool City Region',
+    'West of England',
+    'West Midlands',
+    'Hull and East Yorkshire',
+    'York and North Yorkshire',
+    'South Yorkshire',
+    'West Yorkshire',
+}
+
+
+def _get_color_column(dtaselected, color_level):
+    color_column = color_level.lower() + 'name'
+    if color_level == 'MCA':
+        dtaselected['mca_color_group'] = dtaselected[color_column].replace({
+            **{name: UPCOMING_MSA_GROUP for name in UPCOMING_MSA_NAMES},
+            **{name: ESTABLISHED_MSA_GROUP for name in ESTABLISHED_MSA_NAMES},
+        })
+        return 'mca_color_group'
+    return color_column
+
+
 # Makes scatter displayed in streamlit
 def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, showlabel, showtrend, color_level, population, xrange = None, yrange=None, animate=False, delay=3, transition=2):
     pio.renderers.default='browser'
 
-    metric = 'Average Annual log percentage change' #options are: 'Percentage change', 'Log percentage change', 'Average Annual Percentage change', 'Average Annual log percentage change'
-    itl_string = ','.join(levels)
+    metric = 'Average Annual percentage change' #options are: 'Percentage change', 'Log percentage change', 'Average Annual Percentage change', 'Average Annual log percentage change'
+    title_levels = [
+        'Mayoral Strategic Authorities' if level == 'MCA' else level
+        for level in levels
+    ]
+    itl_string = ','.join(title_levels)
     figure_title = 'UK ' + itl_string + ' regions<br>' +\
                     '<sup>' + str(year) + ' Nominal smoothed GVA per hour, vs. ' + str(start) + '-' + \
                     str(year) + ' productivity change</sup>'
@@ -47,6 +96,12 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
         colormap = colour_maps[3]
     else:
         colormap = colour_maps[int(color_level[3]) - 1]
+    color_column = _get_color_column(dtaselected, color_level)
+    legend_title = (
+        'Mayoral Strategic Authorities'
+        if color_level == 'MCA'
+        else color_level + ' Region'
+    )
 
     if showlabel:
         labels = 'name'
@@ -66,7 +121,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
             custom_data=['name', 'code', 'GVA per hour', metric, 'Population', 'level']
             fig = px.scatter(dtaselected.reset_index(), x = 'GVA per hour', y=metric,
                         text=labels,
-                        color = color_level.lower() + 'name',
+                        color = color_column,
                         color_discrete_map = colormap,
                         custom_data=['name', 'code', 'GVA per hour', metric, 'Population', 'level'],
                         trendline = trend,
@@ -81,7 +136,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
             custom_data=['name', 'code', 'GVA per hour', metric, 'level']
             fig = px.scatter(dtaselected.reset_index(), x = 'GVA per hour', y=metric,
                         text=labels,
-                        color = color_level.lower() + 'name',
+                        color = color_column,
                         color_discrete_map = colormap,
                         custom_data=['name', 'code', 'GVA per hour', metric, 'level'],
                         trendline = trend,
@@ -97,7 +152,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
             custom_data=['name', 'code', 'GVA per hour', metric, 'Population', 'level']
             fig = px.scatter(dtaselected.reset_index(), x = 'GVA per hour', y=metric,
                         text=labels,
-                        color = color_level.lower() + 'name',
+                        color = color_column,
                         color_discrete_map = colormap,
                         custom_data=custom_data,
                         trendline = trend,
@@ -114,7 +169,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
             custom_data=['name', 'code', 'GVA per hour', metric, 'level']
             fig = px.scatter(dtaselected.reset_index(), x = 'GVA per hour', y=metric,
                         text=labels,
-                        color = color_level.lower() + 'name',
+                        color = color_column,
                         color_discrete_map = colormap,
                         custom_data=custom_data,
                         trendline = trend,
@@ -370,7 +425,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
     #Plot formatting
     fig.update_layout(font = {'size': 18*size},
                       showlegend=legend,
-                      legend_title = color_level + ' Region',
+                      legend_title = legend_title,
                       legend_title_font_size = 12*size,
                       legend_font_size = 12*size,
                       plot_bgcolor = 'rgba(237, 237, 237,0.5)',
@@ -467,12 +522,15 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
                                             xref="paper",
                                             yref="paper"
                                             ))
-
     return fig
 
 def scatter_3D(dtaselected, size, start, year, levels, legend, showlabel, color_level, population, z):
     metric = 'Average Annual log percentage change' #options are: 'Percentage change', 'Log percentage change', 'Average Annual Percentage change', 'Average Annual log percentage change'
-    itl_string = ','.join(levels)
+    title_levels = [
+        'Mayoral Strategic Authorities' if level == 'MCA' else level
+        for level in levels
+    ]
+    itl_string = ','.join(title_levels)
     figure_title = 'UK ' + itl_string + ' regions<br>' +\
                     '<sup>' + str(year) + ' Nominal smoothed GVA per hour, vs. ' + str(start) + '-' + \
                     str(year) + ' productivity change</sup>'
@@ -491,6 +549,12 @@ def scatter_3D(dtaselected, size, start, year, levels, legend, showlabel, color_
         colormap = colour_maps[3]
     else:
         colormap = colour_maps[int(color_level[3]) - 1]
+    color_column = _get_color_column(dtaselected, color_level)
+    legend_title = (
+        'Mayoral Strategic Authorities'
+        if color_level == 'MCA'
+        else color_level + ' Region'
+    )
     
     if population:
         if dtaselected['Population'].max() - dtaselected['Population'].min() == 0:
@@ -510,7 +574,7 @@ def scatter_3D(dtaselected, size, start, year, levels, legend, showlabel, color_
         x='GVA per hour', 
         y=metric, 
         z=indicator,  # Choose an appropriate third dimension
-        color=color_level.lower() + 'name',
+        color=color_column,
         color_discrete_map=colormap,
         custom_data=['name', 'code', 'GVA per hour', metric, 'Population', 'level', indicator],
         size='Scaled Population',
@@ -539,7 +603,7 @@ def scatter_3D(dtaselected, size, start, year, levels, legend, showlabel, color_
 
     fig.update_layout(font = {'size': 12},
                       showlegend=legend,
-                      legend_title = color_level + ' Region',
+                      legend_title = legend_title,
                       legend_title_font_size = 12*size,
                       legend_font_size = 12*size,
                       plot_bgcolor = 'rgba(237, 237, 237,0.5)',

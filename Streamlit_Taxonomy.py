@@ -5,10 +5,26 @@ import pandas as pd
 import graphs
 import numpy as np
 import textwrap
+import hashlib
+import re
+from copy import deepcopy
 # import plotly.io as pio
 import io
 import time
 # Streamlit-app
+
+def html_download_filename(start, year, selected_regions, levels):
+    region_slug = re.sub(
+        r"[^a-z0-9]+",
+        "-",
+        "-".join(sorted(selected_regions)).lower()
+    ).strip("-")[:60].rstrip("-")
+    selection = "\0".join([
+        ",".join(sorted(selected_regions)),
+        ",".join(sorted(levels)),
+    ])
+    selection_hash = hashlib.sha256(selection.encode("utf-8")).hexdigest()[:10]
+    return f"TPI_scatter_plot_{region_slug}_{start}-{year}_{selection_hash}.html"
 
 @st.cache_data
 def load_data():
@@ -226,6 +242,7 @@ def main():
 
     indicator_bounds = {'Export Intensity': [2016, 2023],
                         'New Businesses': [2017, 2023],
+                        'High Growth Businesses': [2017, 2023],
                         'Low Skilled': [2016, 2023],
                         'High Skilled': [2016, 2023],
                         'Active': [2016, 2023],
@@ -234,8 +251,7 @@ def main():
                         '5G connectivity': [2023, 2023],
                         'Gigabit connectivity': [2021, 2023],
                         'GFCF per job': [2008, 2020],
-                        'ICT per job': [2008, 2020],
-                        'Intangibles per job': [2008, 2020]}
+                        'EV charging per 100k': [2019, 2023],}
     
     if threeD and (year[1] < indicator_bounds[z][0] or year[1] > indicator_bounds[z][1]):
         year = (year[0], indicator_bounds[z][1])
@@ -402,11 +418,11 @@ def main():
 
             **Time Period:** Users can specify the start and end years for the data they want to analyze. This allows for the exploration of productivity trends for a specific timeframe.
 
-            **Geographical Aggregation Level (ITL/MCA):** Users can choose the level of geographical aggregation for the data. There are three ITL levels available as well as the Mayoral Combined Authority level:
+            **Geographical Aggregation Level (ITL/MCA):** Users can choose the level of geographical aggregation for the data. There are three ITL levels available as well as the Mayoral Strategic Authorities level:
             - **ITL Level 1:** This is the highest level of aggregation, encompassing the 12 English Regions and Devolved Nations of the United Kingdom.
             - **ITL Level 2:** This level offers the intermediate level of geographic aggregation with 41 regions covering the UK.
             - **ITL Level 3:** This is the lowest level of aggregation, comprising 179 regions covering the UK in more detail.
-            - **MCA Level:** This level of aggregation covers 12 English regions so far, and are made up of ITL3 regions.
+            - **Mayoral Strategic Authorities Level:** This level of aggregation covers English regions made up of ITL3 regions, including upcoming authorities.
 
             **Select ITL1 Region(s):** Users can narrow down their analysis by selecting specific ITL1 regions. Upon selecting an ITL1 region, all underlying regions associated with that ITL1 region will be automatically included in the analysis, according to the previously chosen geographical aggregation level.
 
@@ -691,6 +707,27 @@ def main():
                     }
                 }
             )
+            # html_filename = html_download_filename(
+            #     start=year[0],
+            #     year=year[1],
+            #     selected_regions=selected_regions,
+            #     levels=levels,
+            # )
+            # html_fig = deepcopy(fig)
+            # html_fig.update_layout(
+            #     width=800,
+            #     height=700,
+            #     autosize=False,
+            #     legend=dict(
+            #         orientation="h",
+            #         x=1,
+            #         xanchor="right",
+            #         y=-0.15,
+            #         yanchor="bottom",
+            #     ),
+            #     margin=dict(t=50),
+            # )
+            # html_fig.write_html(html_filename)
         print("Runtime constructing figure: " + str(int((time.time() - t0)*1000)) + " miliseconds")
 
     # if download_pdf:

@@ -24,10 +24,10 @@ UPCOMING_MSA_GROUP = 'Upcoming Mayoral Strategic Authorities'
 ESTABLISHED_MSA_GROUP = 'Established Mayoral Strategic Authorities'
 UPCOMING_MSA_NAMES = {
     'Cumbria',
-    'Cheshire',
+    'Cheshire and Warrington',
     'Greater Essex',
     'Sussex and Brighton',
-    'Hampshire and Isle of Wight',
+    'Hampshire and the Solent',
     'Wessex',
     'Norfolk and Suffolk',
     'Thames Valley',
@@ -48,7 +48,7 @@ ESTABLISHED_MSA_NAMES = {
     'York and North Yorkshire',
     'South Yorkshire',
     'West Yorkshire',
-    'Devon, Plymouth and Torbay',
+    'Devon and Torbay',
     'Lancashire'
 }
 
@@ -199,7 +199,7 @@ def scatter(dtaAgg, dtaselected, size, start, year, levels, highlight, legend, s
     #add the scatter point for the reference average, 1 for UK as whole one for UK excluding London:
     for i, v in enumerate(averages):
         if v == 'UKX':
-            dtaAgg['flag'] = '🇬🇧'
+            dtaAgg['flag'] = 'UK'
         else:
             subset = dtaAgg.loc[(v, slice(None), slice(None)), ['GVA per hour', metric, 'Population']]
             

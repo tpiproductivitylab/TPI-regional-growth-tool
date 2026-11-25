@@ -84,12 +84,18 @@ def process_data(data, itlmapping, start, year, levels, region, customregion):
 
     #Select data to plot
     selected = itlmapping.loc[itlmapping['itl1name'].isin(region), :]
-    all_selected_values = [item for level in levels for item in selected[level.lower() + 'name'].unique()]
-    # Remove empty for ITL3s with no MCA parent
-    all_selected_values = [x for x in all_selected_values if x == x and x is not None]
     dtaselected = pd.DataFrame()
     for level in levels:
-        temp = dtaAgg.loc[(level, slice(None), all_selected_values, year),:]
+        level_values = selected[level.lower() + 'name'].unique()
+        level_mask = dtaAgg.index.get_level_values('level') == level
+        available_values = set(dtaAgg.index.get_level_values('name')[level_mask])
+        level_values = [
+            value for value in level_values
+            if value == value and value is not None and value in available_values
+        ]
+        if not level_values:
+            continue
+        temp = dtaAgg.loc[(level, slice(None), level_values, year),:]
         dtaselected = pd.concat([dtaselected, temp])
 
     #Add names names for aggregate regions and scorecard data:
@@ -102,8 +108,10 @@ def process_data(data, itlmapping, start, year, levels, region, customregion):
     dtaselected = dtaselected.reset_index()
     concatenated_df = pd.DataFrame()
     for level in levels:
-        temp = dtaselected.copy()
-        itlmapping_itl = itlmapping.drop(itl_dropset[level], axis = 'columns').drop_duplicates()
+        temp = dtaselected.loc[dtaselected['level'] == level.upper()].copy()
+        if temp.empty:
+            continue
+        itlmapping_itl = selected.drop(itl_dropset[level], axis = 'columns').drop_duplicates(subset=level)
         temp = temp.join(itlmapping_itl.set_index(level), on = 'code')
 
         concatenated_df = pd.concat([concatenated_df, temp], ignore_index=True)
@@ -320,8 +328,9 @@ def main():
     regs = []
     for level in levels:
         regs.extend(itlmapping.loc[itlmapping['itl1name'].isin(selected_regions), level.lower() + 'name'].unique())
-    # Remove empty for ITL3s with no MCA parent
-    regs = [x for x in regs if x == x and x is not None]
+    # Remove empty regions and regions that are not present in the data
+    available_regions = set(data.index.get_level_values('name'))
+    regs = [x for x in regs if x == x and x is not None and x in available_regions]
     css = ""
     for level, name in data.reset_index()[['level', 'name']].drop_duplicates().values:
         if level not in levels:

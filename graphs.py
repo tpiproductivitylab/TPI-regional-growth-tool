@@ -31,9 +31,7 @@ UPCOMING_MSA_NAMES = {
     'Wessex',
     'Norfolk and Suffolk',
     'Thames Valley',
-    'Leicester, Leicestershire and Rutland',
-    'Devon, Plymouth and Torbay',
-    'Lancashire'
+    'Leicester, Leicestershire and Rutland'
 }
 ESTABLISHED_MSA_NAMES = {
     'Cambridgeshire and Peterborough',
@@ -50,6 +48,8 @@ ESTABLISHED_MSA_NAMES = {
     'York and North Yorkshire',
     'South Yorkshire',
     'West Yorkshire',
+    'Devon, Plymouth and Torbay',
+    'Lancashire'
 }
 
 
